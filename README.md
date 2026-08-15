@@ -193,6 +193,8 @@ healthcare-risk-analytics/
 ├── requirements.txt
 ├── DASHBOARD.md                # Power BI build spec
 ├── LICENSE
+├── github-pages/
+│   └── index.html               # static dashboard showcase (GitHub Pages)
 ├── data/
 │   └── heart_disease.csv       # cached dataset (fetched via ucimlrepo)
 ├── notebooks/
@@ -222,15 +224,23 @@ Covers the feature-engineering pipeline (age banding, missing-value
 imputation for `ca`/`thal`, output shape) and the Flask endpoints (health,
 model info, valid/invalid predictions).
 
-## Power BI dashboard
+## Dashboard
 
-Power BI Desktop is a separate Windows application and isn't something a
-script can generate — see [`DASHBOARD.md`](DASHBOARD.md) for the exact
-build spec (visuals, field mappings, ~15-20 min build time).
+**Live, no-install dashboard:** [`github-pages/index.html`](github-pages/index.html)
+mirrors the Power BI dashboard as a static page — KPI cards, model
+comparison chart, feature importances, confusion matrix, risk-distribution
+donut, and a filterable 61-patient drill-down table, all rendered from the
+same `model_kpis.xlsx` / `predictions.csv` exports. Once this repo is
+pushed to GitHub with Pages enabled (Settings → Pages → deploy from
+`main` / `github-pages`), it's reachable at
+`https://<your-username>.github.io/healthcare-risk-analytics/` — open that
+link directly, no Power BI install required.
 
-**Screenshots:** *(add exported dashboard screenshots here after building
-it in Power BI Desktop — e.g. `docs/dashboard-overview.png`,
-`docs/dashboard-patient-drilldown.png`)*
+**Power BI Desktop version:** Power BI Desktop is a separate Windows
+application and isn't something a script can generate — see
+[`DASHBOARD.md`](DASHBOARD.md) for the exact build spec (visuals, field
+mappings, ~15-20 min build time) if you want the native `.pbix`. After
+building it, export screenshots to `docs/` and link them here.
 
 ## Repository integrity
 

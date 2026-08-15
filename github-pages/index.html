@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Heart Disease Risk Analytics</title>
+<meta name="description" content="AI-powered predictive analytics for healthcare risk analysis — scikit-learn model trained on the UCI Cleveland heart disease dataset, served via a Flask REST API. Honest, measured results." />
+<style>
+  :root {
+    --bg: #f9f9f7;
+    --surface: #fcfcfb;
+    --border: #e1e0d9;
+    --text: #0b0b0b;
+    --text-muted: #52514e;
+    --text-faint: #898781;
+    --primary: #2a78d6;
+    --primary-dark: #184f95;
+    --primary-soft: #e9f1fc;
+    --series-2: #eb6834;
+    --series-2-soft: #fdece3;
+    --good: #0ca30c;
+    --good-soft: #e6f6e6;
+    --warning: #c98500;
+    --warning-soft: #fdf1dc;
+    --critical: #d03b3b;
+    --critical-soft: #fbe8e8;
+    --radius: 12px;
+    --shadow: 0 4px 20px rgba(15, 46, 45, 0.06);
+    --maxw: 1100px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  a { color: var(--primary-dark); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  section { padding: 56px 0; }
+  h1, h2, h3 { line-height: 1.25; margin: 0 0 12px; }
+  h2 { font-size: 25px; }
+  h3 { font-size: 15px; }
+  p { color: var(--text-muted); margin: 0 0 12px; }
+  .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.08em; font-size: 11.5px;
+    font-weight: 700; color: var(--primary-dark); margin-bottom: 10px;
+  }
+
+  header.site-nav {
+    position: sticky; top: 0; z-index: 20;
+    background: rgba(249,249,247,0.92); backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: var(--maxw); margin: 0 auto; padding: 14px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-brand { font-weight: 700; font-size: 14px; }
+  .nav-links { display: flex; gap: 20px; font-size: 13px; flex-wrap: wrap; }
+  .nav-links a { text-decoration: none; color: var(--text-muted); font-weight: 600; }
+  .nav-links a:hover { color: var(--primary-dark); }
+
+  .hero { padding: 76px 0 48px; text-align: center; }
+  .hero h1 { font-size: 38px; max-width: 760px; margin: 0 auto 16px; }
+  .hero .lead { font-size: 16.5px; max-width: 640px; margin: 0 auto 26px; }
+  .hero-badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .pill {
+    background: var(--primary-soft); color: var(--primary-dark);
+    padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 11px 22px; border-radius: 8px; font-weight: 600;
+    font-size: 14px; text-decoration: none; border: 1px solid transparent; cursor: pointer;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-outline { background: var(--surface); color: var(--primary-dark); border-color: var(--border); }
+
+  .callout {
+    background: var(--warning-soft); border: 1px solid #f0dfb8; border-radius: var(--radius);
+    padding: 20px 22px; margin: 0 0 8px;
+  }
+  .callout h3 { margin-bottom: 8px; }
+  .callout p { color: var(--text); margin-bottom: 0; }
+  .callout strong { color: var(--text); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px;
+  }
+  .grid { display: grid; gap: 18px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+  /* STAT TILES */
+  .stat-tile { text-align: left; }
+  .stat-tile .label { font-size: 12.5px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+  .stat-tile .value { font-size: 32px; font-weight: 700; color: var(--text); }
+  .stat-tile .sub { font-size: 12px; color: var(--text-faint); margin-top: 4px; }
+  .stat-tile .delta { color: var(--good); font-weight: 700; }
+
+  /* CHART CHROME */
+  .chart-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .chart-sub { font-size: 12.5px; color: var(--text-faint); margin-bottom: 16px; }
+  .legend { display: flex; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-row .bar-label { width: 96px; flex: none; font-size: 12.5px; color: var(--text-muted); text-align: right; }
+  .bar-row .bar-track { flex: 1; position: relative; height: 24px; }
+  .bar-row .bar-fill {
+    position: absolute; top: 4px; height: 16px; border-radius: 4px;
+    transition: filter 0.12s ease;
+  }
+  .bar-row .bar-fill:hover, .bar-row .bar-fill:focus { filter: brightness(0.92); outline: none; }
+  .bar-row .bar-value { position: absolute; top: 2px; font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; }
+
+  .fi-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .fi-row .fi-label { width: 130px; flex: none; font-size: 12px; color: var(--text-muted); text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .fi-row .fi-track { flex: 1; position: relative; height: 18px; }
+  .fi-row .fi-fill { position: absolute; top: 2px; height: 14px; border-radius: 4px; background: var(--primary); }
+  .fi-row .fi-value { position: absolute; top: 1px; font-size: 11.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+
+  /* CONFUSION MATRIX */
+  .cm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cm-table th, .cm-table td { padding: 12px; text-align: center; border: 1px solid var(--border); }
+  .cm-table th { background: var(--bg); color: var(--text-muted); font-weight: 600; font-size: 12px; }
+  .cm-table td.cell { font-weight: 700; font-size: 17px; color: var(--text); }
+  .cm-table td.corner { background: var(--bg); }
+
+  /* DONUT */
+  .donut-wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .donut-legend { display: flex; flex-direction: column; gap: 10px; }
+  .donut-legend .item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .donut-legend .dot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .donut-legend .count { font-weight: 700; color: var(--text); margin-left: 4px; }
+
+  /* TOOLTIP */
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 50; opacity: 0; transition: opacity 0.1s ease;
+    background: var(--text); color: #fff; padding: 8px 11px; border-radius: 8px; font-size: 12.5px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18); max-width: 240px;
+  }
+  #tooltip.show { opacity: 1; }
+  #tooltip .tt-value { font-weight: 700; font-size: 13.5px; }
+  #tooltip .tt-label { color: #d8d8d5; margin-top: 2px; }
+
+  /* FILTER ROW */
+  .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .filter-btn {
+    padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+    font-size: 12.5px; font-weight: 600; color: var(--text-muted); cursor: pointer;
+  }
+  .filter-btn[aria-pressed="true"] { background: var(--primary); color: white; border-color: var(--primary); }
+  .filter-count { font-size: 12.5px; color: var(--text-faint); margin-left: auto; }
+
+  /* PATIENT TABLE */
+  .table-scroll { overflow-x: auto; max-height: 480px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table.patients { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  table.patients th {
+    position: sticky; top: 0; background: var(--surface); text-align: left; padding: 10px 12px;
+    border-bottom: 1px solid var(--border); color: var(--text-muted); font-weight: 600; white-space: nowrap;
+  }
+  table.patients td { padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.patients tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+  .badge.Low { background: var(--good-soft); color: var(--good); }
+  .badge.Medium { background: var(--warning-soft); color: var(--warning); }
+  .badge.High { background: var(--critical-soft); color: var(--critical); }
+  .outcome-match { color: var(--good); font-weight: 700; }
+  .outcome-miss { color: var(--critical); font-weight: 700; }
+
+  /* ARCHITECTURE FLOW */
+  .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; margin: 22px 0; }
+  .flow-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; font-size: 12.5px; font-weight: 600; text-align: center;
+    box-shadow: var(--shadow); min-width: 130px;
+  }
+  .flow-arrow { color: var(--text-faint); font-size: 18px; }
+  .flow-box.accent { background: var(--primary); color: white; border-color: var(--primary); }
+
+  footer { border-top: 1px solid var(--border); padding: 36px 0; text-align: center; }
+  footer p { font-size: 13px; }
+
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 28px; }
+    .bar-row .bar-label { width: 76px; font-size: 11.5px; }
+    .fi-row .fi-label { width: 96px; font-size: 10.5px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <div class="nav-brand">Heart Disease Risk Analytics</div>
+    <nav class="nav-links">
+      <a href="#model">Model</a>
+      <a href="#dashboard">KPIs</a>
+      <a href="#patients">Patient Table</a>
+      <a href="#methodology">Methodology</a>
+      <a href="https://github.com/sreejavuyyala/healthcare-risk-analytics">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">AI-Powered Predictive Analytics</div>
+    <h1>Healthcare risk analytics, honestly evaluated</h1>
+    <p class="lead">
+      A scikit-learn model trained on the UCI Cleveland heart disease dataset,
+      served through a Flask REST API, with results exported for a Power BI
+      dashboard. This page mirrors that dashboard so it's viewable without
+      Power BI Desktop.
+    </p>
+    <div class="hero-badges">
+      <span class="pill">Python</span>
+      <span class="pill">scikit-learn</span>
+      <span class="pill">Flask</span>
+      <span class="pill">Power BI</span>
+      <span class="pill">303 patient records</span>
+    </div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/sreejavuyyala/healthcare-risk-analytics">View source on GitHub</a>
+      <a class="btn btn-outline" href="https://github.com/sreejavuyyala/healthcare-risk-analytics/blob/main/README.md">Read the README</a>
+      <a class="btn btn-outline" href="https://github.com/sreejavuyyala/healthcare-risk-analytics/blob/main/notebooks/01_eda.ipynb">EDA notebook</a>
+    </div>
+  </div>
+</section>
+
+<section id="model" style="padding-top:0">
+  <div class="wrap">
+    <div class="callout">
+      <h3>Measured result, reported honestly</h3>
+      <p>
+        The original scope targeted "~20% higher accuracy than baseline."
+        The <strong>actual measured lift is +1.89%</strong> (86.89% →
+        88.52%), evaluated on the same held-out test split for both models.
+        A 10-fold cross-validation sweep across the full dataset confirms
+        why: Logistic Regression (84.46% mean accuracy) is a genuinely
+        strong, close-to-linear baseline for this small, well-studied
+        dataset — Random Forest (82.82%) and Gradient Boosting (79.49%)
+        don't reliably beat it here. That's a known property of the
+        Cleveland dataset, not a pipeline bug — and it's a more credible
+        story than a manufactured 20%.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard" style="padding-top:0">
+  <div class="wrap">
+    <div class="eyebrow">Model KPIs</div>
+    <h2>Baseline vs. improved, on the same test set</h2>
+    <p>61 held-out patients (20% split), stratified by outcome. Both models see the exact same test rows.</p>
+
+    <div class="grid grid-4" style="margin: 20px 0 28px;">
+      <div class="card stat-tile">
+        <div class="label">Accuracy (improved)</div>
+        <div class="value">88.52%</div>
+        <div class="sub"><span class="delta">+1.89%</span> vs. baseline</div>
+      </div>
+      <div class="card stat-tile">
+        <div class="label">ROC-AUC</div>
+        <div class="value">0.959</div>
+        <div class="sub">baseline: 0.958</div>
+      </div>
+      <div class="card stat-tile">
+        <div class="label">F1 score</div>
+        <div class="value">0.881</div>
+        <div class="sub">baseline: 0.867</div>
+      </div>
+      <div class="card stat-tile">
+        <div class="label">Recall</div>
+        <div class="value">92.86%</div>
+        <div class="sub">tied with baseline</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="chart-title">Model comparison</div>
+        <div class="chart-sub">Baseline (Logistic Regression) vs. improved (Random Forest, tuned)</div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-swatch" style="background:var(--primary)"></span>Baseline</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:var(--series-2)"></span>Improved</span>
+        </div>
+        <div id="metrics-chart"></div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Confusion matrix</div>
+        <div class="chart-sub">Improved model, 61-patient held-out test set</div>
+        <table class="cm-table" id="cm-table"><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:18px;">
+      <div class="card">
+        <div class="chart-title">Feature importance</div>
+        <div class="chart-sub">Top 10, tuned Random Forest — hover a bar for the exact value</div>
+        <div id="fi-chart"></div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Risk distribution</div>
+        <div class="chart-sub">Predicted risk category across the 61-patient test set</div>
+        <div class="donut-wrap">
+          <svg id="donut" width="180" height="180" viewBox="0 0 180 180" role="img" aria-label="Risk category distribution donut chart"></svg>
+          <div class="donut-legend" id="donut-legend"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="patients" style="padding-top:0">
+  <div class="wrap">
+    <div class="eyebrow">Patient-level drill-down</div>
+    <h2>Test-set predictions</h2>
+    <p>All 61 held-out patients. Filter by predicted risk category — mirrors the slicer described in <a href="https://github.com/sreejavuyyala/healthcare-risk-analytics/blob/main/DASHBOARD.md">DASHBOARD.md</a>.</p>
+
+    <div class="filter-row" role="group" aria-label="Filter patients by risk category">
+      <button class="filter-btn" data-filter="All" aria-pressed="true">All</button>
+      <button class="filter-btn" data-filter="Low" aria-pressed="false">Low</button>
+      <button class="filter-btn" data-filter="Medium" aria-pressed="false">Medium</button>
+      <button class="filter-btn" data-filter="High" aria-pressed="false">High</button>
+      <span class="filter-count" id="filter-count"></span>
+    </div>
+
+    <div class="table-scroll">
+      <table class="patients">
+        <thead>
+          <tr>
+            <th>Age</th><th>Sex</th><th>Chest pain</th><th>Resting BP</th>
+            <th>Cholesterol</th><th>Max HR</th><th>ST depression</th>
+            <th>Risk score</th><th>Risk category</th><th>Predicted</th><th>Actual</th>
+          </tr>
+        </thead>
+        <tbody id="patients-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="methodology">
+  <div class="wrap">
+    <div class="eyebrow">How it works</div>
+    <h2>Architecture</h2>
+    <div class="flow">
+      <div class="flow-box">UCI Heart Disease<br>dataset (ucimlrepo)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Feature engineering<br>age bands · impute · encode · scale</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box accent">Model selection<br>LogReg baseline vs. tuned RF</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Flask REST API<br>/predict · /health · /model-info</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Power BI export<br>KPIs + predictions</div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:24px;">
+      <div class="card">
+        <h3>Dataset</h3>
+        <p>
+          UCI Heart Disease dataset (Cleveland subset) — 303 patient
+          records, 13 clinical attributes, fetched programmatically via
+          <code>ucimlrepo</code>. This is a public benchmark research
+          dataset, not live clinical data.
+        </p>
+        <p style="font-size:12.5px; color:var(--text-faint);">
+          Janosi, A., Steinbrunn, W., Pfisterer, M., &amp; Detrano, R.
+          (1988). Heart Disease [Dataset]. UCI Machine Learning
+          Repository. <a href="https://doi.org/10.24432/C52P4X">doi.org/10.24432/C52P4X</a>
+        </p>
+      </div>
+      <div class="card">
+        <h3>Model selection</h3>
+        <p>
+          Baseline: plain Logistic Regression, single 80/20 split, no
+          tuning. Improved: Random Forest tuned via <code>GridSearchCV</code>
+          over <code>n_estimators</code>, <code>max_depth</code>,
+          <code>min_samples_split</code>, <code>min_samples_leaf</code>,
+          with <code>StratifiedKFold(5)</code> cross-validation. Both
+          evaluated on the identical held-out test set.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>
+      Built with Python, scikit-learn, and Flask · Full source, tests, and
+      the Power BI build spec on
+      <a href="https://github.com/sreejavuyyala/healthcare-risk-analytics">GitHub</a>
+    </p>
+  </div>
+</footer>
+
+<div id="tooltip" role="status" aria-live="polite"></div>
+
+<script>
+const predictions = [{"age": 59, "sex": 1, "cp": 4, "trestbps": 138, "chol": 271, "thalach": 182, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2497, "risk_category": "Low"}, {"age": 66, "sex": 1, "cp": 4, "trestbps": 160, "chol": 228, "thalach": 138, "oldpeak": 2.3, "ca": 0.0, "thal": 6.0, "actual_outcome": 0, "predicted_outcome": 1, "predicted_risk_score": 0.6179, "risk_category": "Medium"}, {"age": 51, "sex": 0, "cp": 3, "trestbps": 130, "chol": 256, "thalach": 149, "oldpeak": 0.5, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.0608, "risk_category": "Low"}, {"age": 34, "sex": 1, "cp": 1, "trestbps": 118, "chol": 182, "thalach": 174, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.0955, "risk_category": "Low"}, {"age": 54, "sex": 1, "cp": 3, "trestbps": 150, "chol": 232, "thalach": 165, "oldpeak": 1.6, "ca": 0.0, "thal": 7.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.4062, "risk_category": "Medium"}, {"age": 60, "sex": 0, "cp": 3, "trestbps": 120, "chol": 178, "thalach": 96, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2533, "risk_category": "Low"}, {"age": 63, "sex": 0, "cp": 2, "trestbps": 140, "chol": 195, "thalach": 179, "oldpeak": 0.0, "ca": 2.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2643, "risk_category": "Low"}, {"age": 74, "sex": 0, "cp": 2, "trestbps": 120, "chol": 269, "thalach": 121, "oldpeak": 0.2, "ca": 1.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.3719, "risk_category": "Medium"}, {"age": 35, "sex": 1, "cp": 4, "trestbps": 126, "chol": 282, "thalach": 156, "oldpeak": 0.0, "ca": 0.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.6623, "risk_category": "High"}, {"age": 45, "sex": 0, "cp": 4, "trestbps": 138, "chol": 236, "thalach": 152, "oldpeak": 0.2, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2597, "risk_category": "Low"}, {"age": 62, "sex": 1, "cp": 2, "trestbps": 120, "chol": 281, "thalach": 103, "oldpeak": 1.4, "ca": 1.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8128, "risk_category": "High"}, {"age": 58, "sex": 0, "cp": 1, "trestbps": 150, "chol": 283, "thalach": 162, "oldpeak": 1.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2523, "risk_category": "Low"}, {"age": 38, "sex": 1, "cp": 3, "trestbps": 138, "chol": 175, "thalach": 173, "oldpeak": 0.0, "ca": NaN, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.0401, "risk_category": "Low"}, {"age": 66, "sex": 1, "cp": 2, "trestbps": 160, "chol": 246, "thalach": 120, "oldpeak": 0.0, "ca": 3.0, "thal": 6.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.6443, "risk_category": "Medium"}, {"age": 54, "sex": 1, "cp": 4, "trestbps": 120, "chol": 188, "thalach": 113, "oldpeak": 1.4, "ca": 1.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8904, "risk_category": "High"}, {"age": 59, "sex": 1, "cp": 4, "trestbps": 164, "chol": 176, "thalach": 90, "oldpeak": 1.0, "ca": 2.0, "thal": 6.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8559, "risk_category": "High"}, {"age": 58, "sex": 1, "cp": 3, "trestbps": 132, "chol": 224, "thalach": 173, "oldpeak": 3.2, "ca": 2.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.6194, "risk_category": "Medium"}, {"age": 69, "sex": 1, "cp": 1, "trestbps": 160, "chol": 234, "thalach": 131, "oldpeak": 0.1, "ca": 1.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 1, "predicted_risk_score": 0.5105, "risk_category": "Medium"}, {"age": 62, "sex": 0, "cp": 4, "trestbps": 140, "chol": 268, "thalach": 160, "oldpeak": 3.6, "ca": 2.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.6005, "risk_category": "Medium"}, {"age": 57, "sex": 1, "cp": 4, "trestbps": 130, "chol": 131, "thalach": 115, "oldpeak": 1.2, "ca": 1.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.906, "risk_category": "High"}, {"age": 59, "sex": 1, "cp": 4, "trestbps": 135, "chol": 234, "thalach": 161, "oldpeak": 0.5, "ca": 0.0, "thal": 7.0, "actual_outcome": 0, "predicted_outcome": 1, "predicted_risk_score": 0.6269, "risk_category": "Medium"}, {"age": 42, "sex": 1, "cp": 3, "trestbps": 130, "chol": 180, "thalach": 150, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.1501, "risk_category": "Low"}, {"age": 43, "sex": 0, "cp": 4, "trestbps": 132, "chol": 341, "thalach": 136, "oldpeak": 3.0, "ca": 0.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.9429, "risk_category": "High"}, {"age": 53, "sex": 1, "cp": 3, "trestbps": 130, "chol": 246, "thalach": 173, "oldpeak": 0.0, "ca": 3.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.3054, "risk_category": "Low"}, {"age": 55, "sex": 0, "cp": 4, "trestbps": 180, "chol": 327, "thalach": 117, "oldpeak": 3.4, "ca": 0.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.5448, "risk_category": "Medium"}, {"age": 39, "sex": 0, "cp": 3, "trestbps": 138, "chol": 220, "thalach": 152, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.1231, "risk_category": "Low"}, {"age": 54, "sex": 0, "cp": 3, "trestbps": 160, "chol": 201, "thalach": 163, "oldpeak": 0.0, "ca": 1.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2033, "risk_category": "Low"}, {"age": 49, "sex": 1, "cp": 3, "trestbps": 120, "chol": 188, "thalach": 139, "oldpeak": 2.0, "ca": 3.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.7662, "risk_category": "High"}, {"age": 37, "sex": 1, "cp": 3, "trestbps": 130, "chol": 250, "thalach": 187, "oldpeak": 3.5, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.1946, "risk_category": "Low"}, {"age": 61, "sex": 1, "cp": 4, "trestbps": 138, "chol": 166, "thalach": 125, "oldpeak": 3.6, "ca": 1.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8118, "risk_category": "High"}, {"age": 41, "sex": 1, "cp": 2, "trestbps": 135, "chol": 203, "thalach": 132, "oldpeak": 0.0, "ca": 0.0, "thal": 6.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.3984, "risk_category": "Medium"}, {"age": 58, "sex": 0, "cp": 4, "trestbps": 170, "chol": 225, "thalach": 146, "oldpeak": 2.8, "ca": 2.0, "thal": 6.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8624, "risk_category": "High"}, {"age": 44, "sex": 1, "cp": 4, "trestbps": 120, "chol": 169, "thalach": 144, "oldpeak": 2.8, "ca": 0.0, "thal": 6.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.671, "risk_category": "High"}, {"age": 58, "sex": 1, "cp": 2, "trestbps": 125, "chol": 220, "thalach": 144, "oldpeak": 0.4, "ca": NaN, "thal": 7.0, "actual_outcome": 0, "predicted_outcome": 1, "predicted_risk_score": 0.5284, "risk_category": "Medium"}, {"age": 45, "sex": 1, "cp": 4, "trestbps": 115, "chol": 260, "thalach": 185, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.183, "risk_category": "Low"}, {"age": 58, "sex": 1, "cp": 4, "trestbps": 125, "chol": 300, "thalach": 171, "oldpeak": 0.0, "ca": 2.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.7805, "risk_category": "High"}, {"age": 41, "sex": 1, "cp": 3, "trestbps": 130, "chol": 214, "thalach": 168, "oldpeak": 2.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2025, "risk_category": "Low"}, {"age": 60, "sex": 1, "cp": 3, "trestbps": 140, "chol": 185, "thalach": 155, "oldpeak": 3.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 0, "predicted_risk_score": 0.3424, "risk_category": "Medium"}, {"age": 52, "sex": 1, "cp": 3, "trestbps": 138, "chol": 223, "thalach": 169, "oldpeak": 0.0, "ca": NaN, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.0499, "risk_category": "Low"}, {"age": 61, "sex": 1, "cp": 4, "trestbps": 148, "chol": 203, "thalach": 161, "oldpeak": 0.0, "ca": 1.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.71, "risk_category": "High"}, {"age": 62, "sex": 1, "cp": 3, "trestbps": 130, "chol": 231, "thalach": 146, "oldpeak": 1.8, "ca": 3.0, "thal": 7.0, "actual_outcome": 0, "predicted_outcome": 1, "predicted_risk_score": 0.8424, "risk_category": "High"}, {"age": 58, "sex": 1, "cp": 4, "trestbps": 128, "chol": 216, "thalach": 131, "oldpeak": 2.2, "ca": 3.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.9832, "risk_category": "High"}, {"age": 54, "sex": 1, "cp": 4, "trestbps": 122, "chol": 286, "thalach": 116, "oldpeak": 3.2, "ca": 2.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8091, "risk_category": "High"}, {"age": 66, "sex": 0, "cp": 4, "trestbps": 178, "chol": 228, "thalach": 165, "oldpeak": 1.0, "ca": 2.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8872, "risk_category": "High"}, {"age": 46, "sex": 1, "cp": 2, "trestbps": 101, "chol": 197, "thalach": 156, "oldpeak": 0.0, "ca": 0.0, "thal": 7.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.2416, "risk_category": "Low"}, {"age": 53, "sex": 0, "cp": 3, "trestbps": 128, "chol": 216, "thalach": 115, "oldpeak": 0.0, "ca": 0.0, "thal": NaN, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.1361, "risk_category": "Low"}, {"age": 55, "sex": 0, "cp": 4, "trestbps": 128, "chol": 205, "thalach": 130, "oldpeak": 2.0, "ca": 1.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.9433, "risk_category": "High"}, {"age": 54, "sex": 0, "cp": 3, "trestbps": 110, "chol": 214, "thalach": 158, "oldpeak": 1.6, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.1064, "risk_category": "Low"}, {"age": 45, "sex": 1, "cp": 4, "trestbps": 142, "chol": 309, "thalach": 147, "oldpeak": 0.0, "ca": 3.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8441, "risk_category": "High"}, {"age": 42, "sex": 1, "cp": 3, "trestbps": 120, "chol": 240, "thalach": 194, "oldpeak": 0.8, "ca": 0.0, "thal": 7.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.4666, "risk_category": "Medium"}, {"age": 43, "sex": 0, "cp": 3, "trestbps": 122, "chol": 213, "thalach": 165, "oldpeak": 0.2, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.0524, "risk_category": "Low"}, {"age": 60, "sex": 1, "cp": 4, "trestbps": 125, "chol": 258, "thalach": 141, "oldpeak": 2.8, "ca": 1.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.9918, "risk_category": "High"}, {"age": 51, "sex": 1, "cp": 3, "trestbps": 94, "chol": 227, "thalach": 154, "oldpeak": 0.0, "ca": 1.0, "thal": 7.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.4208, "risk_category": "Medium"}, {"age": 44, "sex": 1, "cp": 3, "trestbps": 130, "chol": 233, "thalach": 179, "oldpeak": 0.4, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.0638, "risk_category": "Low"}, {"age": 59, "sex": 0, "cp": 4, "trestbps": 174, "chol": 249, "thalach": 143, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 0, "predicted_risk_score": 0.4261, "risk_category": "Medium"}, {"age": 61, "sex": 1, "cp": 4, "trestbps": 140, "chol": 207, "thalach": 138, "oldpeak": 1.9, "ca": 1.0, "thal": 7.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.9323, "risk_category": "High"}, {"age": 58, "sex": 1, "cp": 4, "trestbps": 114, "chol": 318, "thalach": 140, "oldpeak": 4.4, "ca": 3.0, "thal": 6.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.8008, "risk_category": "High"}, {"age": 61, "sex": 1, "cp": 1, "trestbps": 134, "chol": 234, "thalach": 145, "oldpeak": 2.6, "ca": 2.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.5416, "risk_category": "Medium"}, {"age": 63, "sex": 0, "cp": 3, "trestbps": 135, "chol": 252, "thalach": 172, "oldpeak": 0.0, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.1458, "risk_category": "Low"}, {"age": 55, "sex": 0, "cp": 2, "trestbps": 132, "chol": 342, "thalach": 166, "oldpeak": 1.2, "ca": 0.0, "thal": 3.0, "actual_outcome": 0, "predicted_outcome": 0, "predicted_risk_score": 0.0709, "risk_category": "Low"}, {"age": 70, "sex": 1, "cp": 4, "trestbps": 130, "chol": 322, "thalach": 109, "oldpeak": 2.4, "ca": 3.0, "thal": 3.0, "actual_outcome": 1, "predicted_outcome": 1, "predicted_risk_score": 0.7472, "risk_category": "High"}];
+
+const metrics = [
+  { label: "Accuracy",  baseline: 0.8689, improved: 0.8852 },
+  { label: "Precision", baseline: 0.8125, improved: 0.8387 },
+  { label: "Recall",    baseline: 0.9286, improved: 0.9286 },
+  { label: "F1",        baseline: 0.8667, improved: 0.8814 },
+  { label: "ROC-AUC",   baseline: 0.9578, improved: 0.9589 },
+];
+
+const featureImportance = [
+  { feature: "thal_3.0",  importance: 0.1177 },
+  { feature: "ca",        importance: 0.1156 },
+  { feature: "thal_7.0",  importance: 0.1096 },
+  { feature: "cp_4",      importance: 0.0951 },
+  { feature: "thalach",   importance: 0.0910 },
+  { feature: "oldpeak",   importance: 0.0760 },
+  { feature: "age",       importance: 0.0586 },
+  { feature: "exang",     importance: 0.0504 },
+  { feature: "trestbps",  importance: 0.0459 },
+  { feature: "chol",      importance: 0.0451 },
+];
+
+const confusionMatrix = { tn: 28, fp: 5, fn: 2, tp: 26 };
+
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const tooltip = document.getElementById("tooltip");
+
+function showTooltip(evt, valueText, labelText) {
+  tooltip.innerHTML = "";
+  const v = document.createElement("div");
+  v.className = "tt-value";
+  v.textContent = valueText;
+  const l = document.createElement("div");
+  l.className = "tt-label";
+  l.textContent = labelText;
+  tooltip.appendChild(v);
+  tooltip.appendChild(l);
+  tooltip.classList.add("show");
+  moveTooltip(evt);
+}
+function moveTooltip(evt) {
+  const x = evt.clientX, y = evt.clientY;
+  tooltip.style.left = Math.min(x + 14, window.innerWidth - 250) + "px";
+  tooltip.style.top = Math.max(y - 40, 8) + "px";
+}
+function hideTooltip() { tooltip.classList.remove("show"); }
+
+// ---- Model comparison grouped bar chart ----
+function renderMetricsChart() {
+  const root = document.getElementById("metrics-chart");
+  const maxVal = 1.0;
+  const primary = cssVar("--primary"), series2 = cssVar("--series-2");
+  metrics.forEach(m => {
+    [["baseline", primary], ["improved", series2]].forEach(([key, color], i) => {
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      const label = document.createElement("div");
+      label.className = "bar-label";
+      label.textContent = i === 0 ? m.label : "";
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const pct = (m[key] / maxVal) * 100;
+      const fill = document.createElement("div");
+      fill.className = "bar-fill";
+      fill.style.left = "0";
+      fill.style.width = pct + "%";
+      fill.style.background = color;
+      fill.tabIndex = 0;
+      fill.setAttribute("role", "img");
+      const seriesName = key === "baseline" ? "Baseline (Logistic Regression)" : "Improved (Random Forest)";
+      fill.setAttribute("aria-label", `${m.label}, ${seriesName}: ${(m[key]*100).toFixed(2)}%`);
+      const valueLabel = document.createElement("div");
+      valueLabel.className = "bar-value";
+      valueLabel.textContent = (m[key] * 100).toFixed(1) + "%";
+      valueLabel.style.left = `calc(${pct}% + 6px)`;
+      const onEnter = (evt) => showTooltip(evt, `${(m[key]*100).toFixed(2)}%`, `${m.label} — ${seriesName}`);
+      fill.addEventListener("pointermove", onEnter);
+      fill.addEventListener("pointerenter", onEnter);
+      fill.addEventListener("focus", (evt) => showTooltip(evt, `${(m[key]*100).toFixed(2)}%`, `${m.label} — ${seriesName}`));
+      fill.addEventListener("pointerleave", hideTooltip);
+      fill.addEventListener("blur", hideTooltip);
+      track.appendChild(fill);
+      track.appendChild(valueLabel);
+      row.appendChild(label);
+      row.appendChild(track);
+      root.appendChild(row);
+    });
+  });
+}
+
+// ---- Feature importance bar chart ----
+function renderFeatureImportance() {
+  const root = document.getElementById("fi-chart");
+  const maxVal = Math.max(...featureImportance.map(f => f.importance));
+  featureImportance.forEach(f => {
+    const row = document.createElement("div");
+    row.className = "fi-row";
+    const label = document.createElement("div");
+    label.className = "fi-label";
+    label.textContent = f.feature;
+    const track = document.createElement("div");
+    track.className = "fi-track";
+    const pct = (f.importance / maxVal) * 100;
+    const fill = document.createElement("div");
+    fill.className = "fi-fill";
+    fill.style.width = pct + "%";
+    fill.tabIndex = 0;
+    fill.setAttribute("role", "img");
+    fill.setAttribute("aria-label", `${f.feature}: ${f.importance.toFixed(4)} importance`);
+    const valueLabel = document.createElement("div");
+    valueLabel.className = "fi-value";
+    valueLabel.textContent = f.importance.toFixed(3);
+    valueLabel.style.left = `calc(${pct}% + 6px)`;
+    const onEnter = (evt) => showTooltip(evt, f.importance.toFixed(4), `Feature: ${f.feature}`);
+    fill.addEventListener("pointermove", onEnter);
+    fill.addEventListener("pointerenter", onEnter);
+    fill.addEventListener("focus", (evt) => showTooltip(evt, f.importance.toFixed(4), `Feature: ${f.feature}`));
+    fill.addEventListener("pointerleave", hideTooltip);
+    fill.addEventListener("blur", hideTooltip);
+    track.appendChild(fill);
+    track.appendChild(valueLabel);
+    row.appendChild(label);
+    row.appendChild(track);
+    root.appendChild(row);
+  });
+}
+
+// ---- Confusion matrix ----
+function renderConfusionMatrix() {
+  const { tn, fp, fn, tp } = confusionMatrix;
+  const maxCount = Math.max(tn, fp, fn, tp);
+  const shade = (count) => {
+    const t = count / maxCount;
+    const l = 92 - t * 45;
+    return `hsl(214, 62%, ${l}%)`;
+  };
+  const tbody = document.querySelector("#cm-table tbody");
+  tbody.innerHTML = `
+    <tr>
+      <td class="corner"></td>
+      <th colspan="2">Predicted</th>
+    </tr>
+    <tr>
+      <th class="corner"></th>
+      <th>No disease</th><th>Disease</th>
+    </tr>
+    <tr>
+      <th style="text-align:right">Actual: No disease</th>
+      <td class="cell" style="background:${shade(tn)}">${tn}</td>
+      <td class="cell" style="background:${shade(fp)}">${fp}</td>
+    </tr>
+    <tr>
+      <th style="text-align:right">Actual: Disease</th>
+      <td class="cell" style="background:${shade(fn)}">${fn}</td>
+      <td class="cell" style="background:${shade(tp)}">${tp}</td>
+    </tr>
+  `;
+}
+
+// ---- Risk distribution donut ----
+function renderDonut() {
+  const counts = { Low: 0, Medium: 0, High: 0 };
+  predictions.forEach(p => counts[p.risk_category]++);
+  const total = predictions.length;
+  const colorFor = { Low: cssVar("--good"), Medium: cssVar("--warning"), High: cssVar("--critical") };
+  const order = ["Low", "Medium", "High"];
+
+  const svg = document.getElementById("donut");
+  const cx = 90, cy = 90, r = 70, strokeW = 26;
+  const circumference = 2 * Math.PI * r;
+  let offsetAccum = 0;
+  const gapDeg = 2;
+
+  order.forEach(key => {
+    const frac = counts[key] / total;
+    const gapLen = (gapDeg / 360) * circumference;
+    const arcLen = Math.max(frac * circumference - gapLen, 0);
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", cx);
+    circle.setAttribute("cy", cy);
+    circle.setAttribute("r", r);
+    circle.setAttribute("fill", "none");
+    circle.setAttribute("stroke", colorFor[key]);
+    circle.setAttribute("stroke-width", strokeW);
+    circle.setAttribute("stroke-dasharray", `${arcLen} ${circumference - arcLen}`);
+    circle.setAttribute("stroke-dashoffset", -offsetAccum);
+    circle.setAttribute("transform", `rotate(-90 ${cx} ${cy})`);
+    circle.style.cursor = "pointer";
+    circle.tabIndex = 0;
+    circle.setAttribute("role", "img");
+    circle.setAttribute("aria-label", `${key} risk: ${counts[key]} patients`);
+    const onEnter = (evt) => showTooltip(evt, `${counts[key]} patients (${((counts[key]/total)*100).toFixed(0)}%)`, `${key} risk`);
+    circle.addEventListener("pointermove", onEnter);
+    circle.addEventListener("pointerenter", onEnter);
+    circle.addEventListener("focus", (evt) => showTooltip(evt, `${counts[key]} patients`, `${key} risk`));
+    circle.addEventListener("pointerleave", hideTooltip);
+    circle.addEventListener("blur", hideTooltip);
+    svg.appendChild(circle);
+    offsetAccum += frac * circumference;
+  });
+
+  const centerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  centerText.setAttribute("x", cx);
+  centerText.setAttribute("y", cy - 4);
+  centerText.setAttribute("text-anchor", "middle");
+  centerText.setAttribute("font-size", "22");
+  centerText.setAttribute("font-weight", "700");
+  centerText.setAttribute("fill", cssVar("--text"));
+  centerText.textContent = total;
+  svg.appendChild(centerText);
+  const centerSub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  centerSub.setAttribute("x", cx);
+  centerSub.setAttribute("y", cy + 14);
+  centerSub.setAttribute("text-anchor", "middle");
+  centerSub.setAttribute("font-size", "10.5");
+  centerSub.setAttribute("fill", cssVar("--text-faint"));
+  centerSub.textContent = "patients";
+  svg.appendChild(centerSub);
+
+  const legend = document.getElementById("donut-legend");
+  order.forEach(key => {
+    const item = document.createElement("div");
+    item.className = "item";
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.style.background = colorFor[key];
+    const text = document.createElement("span");
+    text.textContent = `${key} risk `;
+    const count = document.createElement("span");
+    count.className = "count";
+    count.textContent = counts[key];
+    item.appendChild(dot);
+    item.appendChild(text);
+    item.appendChild(count);
+    legend.appendChild(item);
+  });
+}
+
+// ---- Patient table ----
+function renderPatients(filter) {
+  const body = document.getElementById("patients-body");
+  body.innerHTML = "";
+  const rows = filter === "All" ? predictions : predictions.filter(p => p.risk_category === filter);
+  rows.forEach(p => {
+    const tr = document.createElement("tr");
+    const matches = p.predicted_outcome === p.actual_outcome;
+    tr.innerHTML = `
+      <td>${p.age}</td>
+      <td>${p.sex === 1 ? "M" : "F"}</td>
+      <td>${p.cp}</td>
+      <td>${p.trestbps}</td>
+      <td>${p.chol}</td>
+      <td>${p.thalach}</td>
+      <td>${p.oldpeak.toFixed(1)}</td>
+      <td>${(p.predicted_risk_score * 100).toFixed(1)}%</td>
+      <td><span class="badge ${p.risk_category}">${p.risk_category}</span></td>
+      <td>${p.predicted_outcome === 1 ? "Disease" : "No disease"}</td>
+      <td class="${matches ? "outcome-match" : "outcome-miss"}">${p.actual_outcome === 1 ? "Disease" : "No disease"}${matches ? "" : " ✕"}</td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById("filter-count").textContent = `${rows.length} of ${predictions.length} patients`;
+}
+
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.setAttribute("aria-pressed", "false"));
+    btn.setAttribute("aria-pressed", "true");
+    renderPatients(btn.dataset.filter);
+  });
+});
+
+renderMetricsChart();
+renderFeatureImportance();
+renderConfusionMatrix();
+renderDonut();
+renderPatients("All");
+document.addEventListener("pointermove", (evt) => { if (tooltip.classList.contains("show")) moveTooltip(evt); });
+</script>
+
+</body>
+</html>
